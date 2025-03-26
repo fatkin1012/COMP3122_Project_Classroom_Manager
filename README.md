@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GitHub Classroom Tracker
 
-## Getting Started
+A web application that helps instructors track student activities and collaboration in GitHub repositories for group projects.
 
-First, run the development server:
+## Features
+
+- **Real-time GitHub data fetching**: Connect to the GitHub API to monitor repositories, commits, issues, and pull requests
+- **Comprehensive tracking**: Track student activities like commit frequency, project boards, issues, code changes, discussions/comments, and more
+- **Contribution analysis**: Identify each student's contributions and detect patterns like free-riders or deadline fighters
+- **Dashboard visualization**: Visual representation of team performance and individual contributions
+- **Insights and recommendations**: Automated analysis of team dynamics and collaboration patterns
+
+## Prerequisites
+
+- Node.js (v14+)
+- npm
+- GitHub account with access to student repositories
+
+## Setup
+
+1. **Clone the repository**
+
+```bash
+git clone <repository-url>
+cd github-classroom-tracker
+```
+
+2. **Install dependencies**
+
+```bash
+npm install
+```
+
+3. **Configure GitHub OAuth**
+
+- Go to GitHub Developer Settings > OAuth Apps > New OAuth App
+- Set the Application name, Homepage URL (http://localhost:3000), and Authorization callback URL (http://localhost:3000/api/auth/callback)
+- After creating the application, copy the Client ID and Client Secret
+
+4. **Environment Configuration**
+
+Create a `.env.local` file in the project root with:
+
+```
+NEXT_PUBLIC_GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+NEXT_PUBLIC_GITHUB_REDIRECT_URI=http://localhost:3000/api/auth/callback
+```
+
+## Development
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Login with GitHub**: Authenticate with your GitHub account
+2. **Select Organization**: Choose the GitHub organization that contains student repositories
+3. **Select Repository**: Choose a student team repository to analyze
+4. **View Analytics**: Explore the dashboard with detailed insights:
+   - Commit activity and distribution
+   - Issue tracking and resolution times
+   - Pull request statistics
+   - Individual student contributions
+   - Potential collaboration issues
 
-## Learn More
+## Common Issues
 
-To learn more about Next.js, take a look at the following resources:
+- **Authentication Errors**: Ensure your GitHub OAuth credentials are correctly configured in `.env.local`
+- **Missing Data**: The application can only access repositories that your GitHub account has permission to view
+- **Rate Limiting**: GitHub API has rate limits. For large projects, you might need to implement pagination
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Technology Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Frontend**: Next.js, React, Tailwind CSS
+- **Data Visualization**: Chart.js
+- **API Integration**: GitHub API via Octokit
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is licensed under the MIT License - see the LICENSE file for details.
