@@ -1,0 +1,24 @@
+# 核心依賴
+next@14.1.0
+react@18.2.0
+react-dom@18.2.0
+
+# 樣式和 UI
+tailwindcss@3.4.1
+postcss@8.4.35
+autoprefixer@10.4.17
+
+# 類型支持
+typescript@5.3.3
+@types/node@20.11.19
+@types/react@18.2.57
+@types/react-dom@18.2.19
+
+# 開發工具
+eslint@8.56.0
+eslint-config-next@14.1.0
+prettier@3.2.5
+
+# 其他工具
+axios@1.6.7
+date-fns@3.3.1 
