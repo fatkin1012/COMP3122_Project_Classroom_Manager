@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Repository {
   id: number;
@@ -54,69 +55,87 @@ export default function RepositoryDetails({ repository }: RepositoryDetailsProps
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRepositoryData();
-  }, [repository]);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // 獲取倉庫詳細信息
+        const repoResponse = await fetch(`/api/repositories/${repository.name}`);
+        if (!repoResponse.ok) {
+          const errorData = await repoResponse.json();
+          throw new Error(errorData.error || '獲取倉庫信息失敗');
+        }
+        const repoData = await repoResponse.json();
 
-  const fetchRepositoryData = async () => {
-    setLoading(true);
-    setError(null);
+        // 獲取倉庫問題信息
+        const issuesResponse = await fetch(`/api/repositories/${repository.name}/issues`);
+        if (!issuesResponse.ok) {
+          const errorData = await issuesResponse.json();
+          throw new Error(errorData.error || '獲取倉庫問題信息失敗');
+        }
+        const issuesData = await issuesResponse.json();
+        setIssues(issuesData);
 
-    try {
-      const [issuesResponse, commitsResponse, contributorsResponse] = await Promise.all([
-        fetch(`/api/repositories/${repository.name}/issues`),
-        fetch(`/api/repositories/${repository.name}/commits`),
-        fetch(`/api/repositories/${repository.name}/contributors`),
-      ]);
+        // 獲取倉庫提交信息
+        const commitsResponse = await fetch(`/api/repositories/${repository.name}/commits`);
+        if (!commitsResponse.ok) {
+          const errorData = await commitsResponse.json();
+          throw new Error(errorData.error || '獲取倉庫提交信息失敗');
+        }
+        const commitsData = await commitsResponse.json();
+        setCommits(commitsData);
 
-      if (!issuesResponse.ok) {
-        const errorData = await issuesResponse.json();
-        console.error('Issues API Error:', errorData);
-        throw new Error(`Failed to fetch issues: ${issuesResponse.status}`);
+        // 獲取貢獻者信息
+        const contributorsResponse = await fetch(`/api/repositories/${repository.name}/contributors`);
+        if (!contributorsResponse.ok) {
+          const errorData = await contributorsResponse.json();
+          throw new Error(errorData.error || '獲取貢獻者信息失敗');
+        }
+        const contributorsData = await contributorsResponse.json();
+        
+        // 添加 2 秒延遲
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        setContributors(contributorsData);
+      } catch (err) {
+        console.error('獲取數據失敗:', err);
+        setError(err instanceof Error ? err.message : '獲取數據失敗');
+      } finally {
+        setLoading(false);
       }
-      if (!commitsResponse.ok) {
-        const errorData = await commitsResponse.json();
-        console.error('Commits API Error:', errorData);
-        throw new Error(`Failed to fetch commits: ${commitsResponse.status}`);
-      }
-      if (!contributorsResponse.ok) {
-        const errorData = await contributorsResponse.json();
-        console.error('Contributors API Error:', {
-          status: contributorsResponse.status,
-          statusText: contributorsResponse.statusText,
-          data: errorData,
-        });
-        throw new Error(`Failed to fetch contributors: ${contributorsResponse.status} ${contributorsResponse.statusText}`);
-      }
+    };
 
-      const [issuesData, commitsData, contributorsData] = await Promise.all([
-        issuesResponse.json(),
-        commitsResponse.json(),
-        contributorsResponse.json(),
-      ]);
-
-      setIssues(issuesData);
-      setCommits(commitsData);
-      setContributors(contributorsData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load repository data');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchData();
+  }, [repository.name]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-red-500 text-center py-4">
-        {error}
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-red-800">錯誤</h3>
+            <div className="mt-2 text-sm text-red-700">
+              <p>{error}</p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -189,6 +208,70 @@ export default function RepositoryDetails({ repository }: RepositoryDetailsProps
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
         <h3 className="text-xl font-semibold mb-4 text-gray-900">Contributors</h3>
+        
+        {/* Add Chart */}
+        <div className="mb-8">
+          <h4 className="text-lg font-medium mb-4 text-gray-700">Contribution Statistics</h4>
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={contributors}
+                margin={{
+                  top: 20,
+                  right: 30,
+                  left: 20,
+                  bottom: 5,
+                }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="login" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis 
+                  yAxisId="left" 
+                  orientation="left" 
+                  stroke="#8884d8"
+                  label={{ value: 'Number of Commits', angle: -90, position: 'insideLeft' }}
+                />
+                <YAxis 
+                  yAxisId="right" 
+                  orientation="right" 
+                  stroke="#82ca9d"
+                  label={{ value: 'Lines of Code', angle: 90, position: 'insideRight' }}
+                />
+                <Tooltip 
+                  formatter={(value: number) => [value.toLocaleString(), '']}
+                  labelFormatter={(label) => `Contributor: ${label}`}
+                />
+                <Legend />
+                <Bar 
+                  yAxisId="left"
+                  dataKey="commits" 
+                  name="Commits" 
+                  fill="#8884d8" 
+                />
+                <Bar 
+                  yAxisId="right"
+                  dataKey="additions" 
+                  name="Additions" 
+                  fill="#82ca9d" 
+                />
+                <Bar 
+                  yAxisId="right"
+                  dataKey="deletions" 
+                  name="Deletions" 
+                  fill="#ffc658" 
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
