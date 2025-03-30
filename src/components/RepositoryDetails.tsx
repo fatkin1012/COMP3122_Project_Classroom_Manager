@@ -36,9 +36,20 @@ interface Commit {
   };
 }
 
+interface Contributor {
+  login: string;
+  avatar_url: string;
+  contributions: number;
+  additions: number;
+  deletions: number;
+  commits: number;
+  timeSpent: string;
+}
+
 export default function RepositoryDetails({ repository }: RepositoryDetailsProps) {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [commits, setCommits] = useState<Commit[]>([]);
+  const [contributors, setContributors] = useState<Contributor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,24 +62,43 @@ export default function RepositoryDetails({ repository }: RepositoryDetailsProps
     setError(null);
 
     try {
-      const [issuesResponse, commitsResponse] = await Promise.all([
+      const [issuesResponse, commitsResponse, contributorsResponse] = await Promise.all([
         fetch(`/api/repositories/${repository.name}/issues`),
         fetch(`/api/repositories/${repository.name}/commits`),
+        fetch(`/api/repositories/${repository.name}/contributors`),
       ]);
 
-      if (!issuesResponse.ok || !commitsResponse.ok) {
-        throw new Error('Failed to fetch repository data');
+      if (!issuesResponse.ok) {
+        const errorData = await issuesResponse.json();
+        console.error('Issues API Error:', errorData);
+        throw new Error(`Failed to fetch issues: ${issuesResponse.status}`);
+      }
+      if (!commitsResponse.ok) {
+        const errorData = await commitsResponse.json();
+        console.error('Commits API Error:', errorData);
+        throw new Error(`Failed to fetch commits: ${commitsResponse.status}`);
+      }
+      if (!contributorsResponse.ok) {
+        const errorData = await contributorsResponse.json();
+        console.error('Contributors API Error:', {
+          status: contributorsResponse.status,
+          statusText: contributorsResponse.statusText,
+          data: errorData,
+        });
+        throw new Error(`Failed to fetch contributors: ${contributorsResponse.status} ${contributorsResponse.statusText}`);
       }
 
-      const [issuesData, commitsData] = await Promise.all([
+      const [issuesData, commitsData, contributorsData] = await Promise.all([
         issuesResponse.json(),
         commitsResponse.json(),
+        contributorsResponse.json(),
       ]);
 
       setIssues(issuesData);
       setCommits(commitsData);
+      setContributors(contributorsData);
     } catch (err) {
-      setError('Failed to load repository data');
+      setError(err instanceof Error ? err.message : 'Failed to load repository data');
       console.error('Error:', err);
     } finally {
       setLoading(false);
@@ -154,6 +184,53 @@ export default function RepositoryDetails({ repository }: RepositoryDetailsProps
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+        <h3 className="text-xl font-semibold mb-4 text-gray-900">Contributors</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contributor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commits</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Changes</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Spent</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {contributors.map((contributor) => (
+                <tr key={contributor.login}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <img
+                        className="h-8 w-8 rounded-full"
+                        src={contributor.avatar_url}
+                        alt={contributor.login}
+                      />
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {contributor.login}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{contributor.commits}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      +{(contributor.additions || 0).toLocaleString()} / -{(contributor.deletions || 0).toLocaleString()}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{contributor.timeSpent}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
