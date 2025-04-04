@@ -1,3 +1,4 @@
+// src/app/api/repositories/[repo]/contributors/route.ts
 import { NextResponse } from 'next/server';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -5,9 +6,12 @@ const ORGANIZATION = process.env.GITHUB_ORGANIZATION;
 
 export async function GET(
   request: Request,
-  { params }: { params: { repo: string } }
+  { params }: { params: Promise<{ repo: string }> } // 明確指定 params 是一個 Promise
 ) {
   try {
+    // 等待 params 解析
+    const { repo } = await params;
+
     if (!GITHUB_TOKEN) {
       console.error('GitHub token is not configured');
       return NextResponse.json(
@@ -24,7 +28,6 @@ export async function GET(
       );
     }
 
-    const repo = await params.repo;
     if (!repo) {
       console.error('Repository name is missing');
       return NextResponse.json(
@@ -155,31 +158,25 @@ export async function GET(
           // 計算總時間（以小時為單位）
           let totalHours = 0;
           contributorStats.weeks.forEach((week: any) => {
-            // 根據代碼變更量計算時間
-            const codeChanges = week.a + week.d; // 總代碼變更行數
-            const commits = week.c; // 提交次數
+            const codeChanges = week.a + week.d;
+            const commits = week.c;
 
             if (commits > 0) {
-              // 基礎時間：每個提交至少需要 15 分鐘
               totalHours += commits * 0.25;
-
-              // 根據代碼變更量調整時間
               if (codeChanges > 0) {
-                // 每 100 行代碼變更增加 1 小時
                 totalHours += (codeChanges / 100);
               }
             }
           });
 
-          // 格式化時間
           let timeSpent;
-          if (totalHours >= 24 * 7) { // 超過一週
+          if (totalHours >= 24 * 7) {
             timeSpent = `${Math.round(totalHours / (24 * 7))} weeks`;
-          } else if (totalHours >= 24) { // 超過一天
+          } else if (totalHours >= 24) {
             timeSpent = `${Math.round(totalHours / 24)} days`;
-          } else if (totalHours >= 1) { // 超過一小時
+          } else if (totalHours >= 1) {
             timeSpent = `${Math.round(totalHours)} hours`;
-          } else { // 少於一小時
+          } else {
             timeSpent = `${Math.round(totalHours * 60)} minutes`;
           }
 
@@ -218,4 +215,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}
