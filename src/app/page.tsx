@@ -15,7 +15,7 @@ export default function Home() {
         
         <div className="flex flex-col items-center space-y-6">
           <Link 
-            href="/dashboard" 
+            href="/assignment" 
             className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-md transition"
           >
             Go to Dashboard

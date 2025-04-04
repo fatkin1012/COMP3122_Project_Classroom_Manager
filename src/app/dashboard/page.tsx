@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState ,useRef} from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { animate, motion } from 'framer-motion';
 import RepositoryList from '@/components/RepositoryList';
 import RepositoryDetails from '@/components/RepositoryDetails';
 
@@ -22,25 +22,33 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const effectRan = useRef(false)
   useEffect(() => {
-    fetchRepositories();
-  }, []);
+    const fetchRepositories = async () => {
+      try {
+        const response = await fetch('/api/repositories');
+        if (!response.ok) {
+          throw new Error('Failed to fetch repositories');
+        }
+        const data = await response.json();
+        setRepositories(data);
+      
+      } catch (err) {
+        setError('Failed to load repositories');
+        console.error('Error:', err);
+      } finally {
+        setLoading(false);
+      } 
+    };
 
-  const fetchRepositories = async () => {
-    try {
-      const response = await fetch('/api/repositories');
-      if (!response.ok) {
-        throw new Error('Failed to fetch repositories');
-      }
-      const data = await response.json();
-      setRepositories(data);
-    } catch (err) {
-      setError('Failed to load repositories');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
+    if(effectRan.current === false){
+      fetchRepositories();
     }
-  };
+
+    return () => {
+      effectRan.current = true;
+    }
+  }, []);
 
   if (loading) {
     return (

@@ -20,10 +20,12 @@ export default function RepositoryList({
   onSelectRepo,
 }: RepositoryListProps) {
   return (
+    
     <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
       <h2 className="text-xl font-semibold mb-4 text-gray-900">Repositories</h2>
       <div className="space-y-4">
         {repositories.map((repo) => (
+        
           <div
             key={repo.id}
             className={`p-4 rounded-lg border cursor-pointer transition-colors ${

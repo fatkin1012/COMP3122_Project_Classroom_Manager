@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   try {
     const response = await fetch(
-      `https://api.github.com/repos/${GITHUB_ORGANIZATION}/${repo}/pulls`,
+      `https://api.github.com/repos/${GITHUB_ORGANIZATION}/${repo}/pulls?state=all`,
       {
         headers: {
           Authorization: `token ${GITHUB_TOKEN}`,
@@ -30,22 +30,27 @@ export async function GET(request: Request) {
     );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('GitHub API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        body: errorText,
-      });
-      return NextResponse.json(
-        { error: `Failed to fetch pull requests: ${response.status} ${response.statusText}` },
-        { status: response.status }
-      );
+      throw new Error(`Failed to fetch pull requests: ${response.status}`);
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    
+    // Format the pull requests data for the UI
+    const formattedPulls = data.map((pr: any) => ({
+      title: pr.title,
+      state: pr.state,
+      created_at: pr.created_at,
+      user: {
+        login: pr.user.login
+      }
+    }));
+
+    return NextResponse.json(formattedPulls);
   } catch (error) {
     console.error('Error fetching pull requests:', error);
-    return NextResponse.json({ error: 'Failed to fetch pull requests' }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to fetch pull requests' },
+      { status: 500 }
+    );
   }
 }

@@ -13,7 +13,7 @@ export async function GET(
 
   try {
     const response = await fetch(
-      `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/commits`,
+      `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/pulls`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
@@ -26,21 +26,23 @@ export async function GET(
       throw new Error(`GitHub API responded with status ${response.status}`);
     }
 
-    const commits = await response.json();
-    
-    // Format the commits data for the UI
-    const formattedCommits = commits.map((commit: any) => ({
-      sha: commit.sha,
-      message: commit.commit.message,
-      author: commit.commit.author.name,
-      date: commit.commit.author.date,
+    const pulls = await response.json();
+    const formattedPulls = pulls.map((pr: any) => ({
+      title: pr.title,
+      state: pr.state,
+      created_at: pr.created_at,
+      user: {
+        login: pr.user.login
+      },
+      number: pr.number,
+      html_url: pr.html_url
     }));
 
-    return NextResponse.json(formattedCommits);
+    return NextResponse.json(formattedPulls);
   } catch (error) {
-    console.error('Error fetching commits:', error);
+    console.error('Error fetching pull requests:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch commits' },
+      { error: 'Failed to fetch pull requests' },
       { status: 500 }
     );
   }
