@@ -59,7 +59,21 @@ const AssignmentPage = () => {
   useEffect(() => {
     const fetchAssignments = async () => {
       try {
-        const response = await fetch('/api/assignments');
+        const response = await fetch('/api/assignments', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            // Add cache control to prevent caching
+            'Cache-Control': 'no-cache',
+          },
+        });
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Server returned non-JSON response');
+        }
+
         const data = await response.json();
         
         if (!response.ok) {
@@ -72,7 +86,8 @@ const AssignmentPage = () => {
 
         setAssignments(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        console.error('Fetch error:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred while fetching data');
       } finally {
         setLoading(false);
       }

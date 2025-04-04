@@ -62,6 +62,7 @@ interface CommitData {
   message: string;
   sha: string;
   parents?: { sha: string }[];
+  timeSpent?: string;
 }
 
 interface CommitAuthor {
@@ -82,6 +83,7 @@ interface AnalysisData {
     contributions: number;
     additions: number;
     deletions: number;
+    timeSpent?: string;
   }[];
   pullRequests: {
     title: string;
@@ -352,7 +354,53 @@ export default function RepositoryDetailsPage() {
         pullsRes.json(),
       ]);
 
-      setAnalysisData({ commits, issues, contributors, pullRequests });
+      // Calculate time spent for each contributor
+      const contributorsWithTime = contributors.map((contributor: { login: string; additions: number; deletions: number; [key: string]: any }) => {
+        // Filter commits by matching either author.login or commit.author.name
+        const userCommits = commits.filter((commit: any) => {
+          const authorLogin = commit.author?.login || commit.author;
+          const authorName = commit.commit?.author?.name;
+          return authorLogin === contributor.login || authorName === contributor.login;
+        });
+        
+        if (userCommits.length === 0) {
+          return { ...contributor, timeSpent: '0 minutes' };
+        }
+
+        // Calculate total time based on:
+        // 1. Base time: 15 minutes per commit
+        // 2. Additional time: 1 hour per 100 lines of code changed
+        const baseTimeMinutes = userCommits.length * 15;
+        const totalChanges = (contributor.additions || 0) + (contributor.deletions || 0);
+        const changeTimeMinutes = Math.round((totalChanges / 100) * 60); // 1 hour = 60 minutes per 100 lines
+
+        // Total time in minutes
+        const totalMinutes = baseTimeMinutes + changeTimeMinutes;
+
+        // Format time based on duration
+        if (totalMinutes >= 10080) { // More than 1 week (7 * 24 * 60 = 10080 minutes)
+          const weeks = Math.floor(totalMinutes / 10080);
+          const remainingDays = Math.floor((totalMinutes % 10080) / 1440); // 1440 = 24 * 60
+          return { ...contributor, timeSpent: `${weeks}w ${remainingDays}d` };
+        } else if (totalMinutes >= 1440) { // More than 1 day
+          const days = Math.floor(totalMinutes / 1440);
+          const remainingHours = Math.floor((totalMinutes % 1440) / 60);
+          return { ...contributor, timeSpent: `${days}d ${remainingHours}h` };
+        } else if (totalMinutes >= 60) { // More than 1 hour
+          const hours = Math.floor(totalMinutes / 60);
+          const remainingMinutes = totalMinutes % 60;
+          return { ...contributor, timeSpent: `${hours}h ${remainingMinutes}m` };
+        } else {
+          return { ...contributor, timeSpent: `${totalMinutes}m` };
+        }
+      });
+
+      setAnalysisData({ 
+        commits, 
+        issues, 
+        contributors: contributorsWithTime, 
+        pullRequests 
+      });
       setShowAnalysis(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze repository');
@@ -624,43 +672,55 @@ export default function RepositoryDetailsPage() {
       name: contributor.login,
       commits: contributor.contributions,
       additions: contributor.additions || 0,
-      deletions: contributor.deletions || 0
+      deletions: contributor.deletions || 0,
+      timeSpent: contributor.timeSpent || '0 minutes'
     }));
 
     return (
       <div className="space-y-6">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contributor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commits</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Changes</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time Spent</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {contributorsData.map((contributor) => (
+                <tr key={contributor.name} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm font-medium text-gray-900">@{contributor.name}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{contributor.commits}</div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      <span className="text-green-600">+{contributor.additions}</span>
+                      <span className="mx-1">/</span>
+                      <span className="text-red-600">-{contributor.deletions}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{contributor.timeSpent}</div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={contributorsData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
+            <BarChart data={contributorsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                tick={{ fontSize: 12, fill: '#6b7280' }}
-              />
-              <YAxis
-                yAxisId="left"
-                orientation="left"
-                stroke="#3b82f6"
-                label={{ value: 'Number of Commits', angle: -90, position: 'insideLeft', fill: '#6b7280' }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                stroke="#10b981"
-                label={{ value: 'Lines of Code', angle: 90, position: 'insideRight', fill: '#6b7280' }}
-              />
-              <Tooltip
-                formatter={(value: number) => [value.toLocaleString(), '']}
-                labelFormatter={(label) => `Contributor: ${label}`}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '4px' }}
-              />
-              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+              <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" />
+              <YAxis yAxisId="right" orientation="right" stroke="#10b981" />
+              <Tooltip />
+              <Legend />
               <Bar yAxisId="left" dataKey="commits" name="Commits" fill="#3b82f6" />
               <Bar yAxisId="right" dataKey="additions" name="Additions" fill="#10b981" />
               <Bar yAxisId="right" dataKey="deletions" name="Deletions" fill="#f59e0b" />
