@@ -1094,22 +1094,42 @@ export default function RepositoryDetailsPage() {
 
       // Calculate performance score (0-100)
       const performanceScore = Math.min(100, Math.round(
-        (Number(issueResolutionRate) * 0.3) + // Issue resolution (30%)
-        (Number(prCompletionRate) * 0.3) + // PR completion (30%)
-        (Math.min(Number(avgCommitsPerContributor) * 10, 20)) + // Activity level (20%)
-        (Math.min(Number(avgChangesPerCommit) / 10, 20)) // Code quality (20%)
+        (Number(issueResolutionRate) * 0.25) + // Issue resolution (25%)
+        (Number(prCompletionRate) * 0.25) + // PR completion (25%)
+        (totalContributors > 1 
+          ? Math.min(
+              // For team repositories, consider both individual and team metrics
+              (Number(avgCommitsPerContributor) * 10) * 0.7 + // Team activity (70% weight)
+              (Math.min(totalCommits / 10, 20)) * 0.3, // Individual activity (30% weight)
+              20
+            )
+          : Math.min(totalCommits / 10, 20) // Individual activity level (20%)
+        ) +
+        (Math.min(Number(avgChangesPerCommit) / 10, 30)) // Code quality (30%)
       ));
 
       // Generate performance assessment
       let performanceAssessment = '';
-      if (performanceScore >= 80) {
-        performanceAssessment = 'Excellent work! The student has demonstrated strong understanding and consistent effort.';
-      } else if (performanceScore >= 60) {
-        performanceAssessment = 'Good effort, but there is room for improvement in some areas.';
-      } else if (performanceScore >= 40) {
-        performanceAssessment = 'Basic requirements met, but significant improvements needed.';
+      if (totalContributors === 1) {
+        if (performanceScore >= 80) {
+          performanceAssessment = 'Excellent individual contribution! The student has taken strong initiative in the team project.';
+        } else if (performanceScore >= 60) {
+          performanceAssessment = 'Good individual contribution. Consider encouraging other team members to participate more actively.';
+        } else if (performanceScore >= 40) {
+          performanceAssessment = 'Basic individual contribution. Team collaboration needs significant improvement.';
+        } else {
+          performanceAssessment = 'Below expectations. Both individual contribution and team collaboration need immediate attention.';
+        }
       } else {
-        performanceAssessment = 'Below expectations. Immediate attention and improvement needed.';
+        if (performanceScore >= 80) {
+          performanceAssessment = 'Excellent team work! The team has demonstrated strong understanding and consistent effort.';
+        } else if (performanceScore >= 60) {
+          performanceAssessment = 'Good team effort, but there is room for improvement in some areas.';
+        } else if (performanceScore >= 40) {
+          performanceAssessment = 'Basic requirements met, but significant improvements needed.';
+        } else {
+          performanceAssessment = 'Below expectations. Immediate attention and improvement needed.';
+        }
       }
 
       // Generate specific feedback

@@ -1,4 +1,5 @@
-import { GitHubCommit, GitHubIssue, GitHubPullRequest, GitHubUser } from '../config/github';
+import { GitHubCommit, GitHubIssue, GitHubPullRequest } from '../types/github';
+import { GitHubUser } from '../config/github';
 import { formatDistance, parseISO, startOfDay, endOfDay, eachDayOfInterval, isSameDay } from 'date-fns';
 
 export type CommitStats = {
@@ -27,26 +28,73 @@ export type PullRequestStats = {
   averagePRMergeTime: string;
 };
 
-export type UserContribution = {
+interface UserContribution {
   user: string;
   userId: number;
   commits: number;
   issues: number;
   pullRequests: number;
+  codeReviews: number;
+  discussions: number;
+  documentation: number;
+  lastActiveDate: Date;
   totalContributions: number;
   contributionPercentage: number;
-};
+}
 
-export type TeamStats = {
-  teamName: string;
-  repoUrl: string;
-  commitStats: CommitStats;
-  issueStats: IssueStats;
-  pullRequestStats: PullRequestStats;
+interface TeamStats {
   userContributions: UserContribution[];
-  lastActivityDate: string;
+  commitStats: {
+    totalCommits: number;
+    commitsByDay: Record<string, number>;
+    commitsByUser: Record<string, number>;
+  };
+  issueStats: {
+    totalIssues: number;
+    openIssues: number;
+    closedIssues: number;
+    issuesByUser: Record<string, number>;
+  };
+  prStats: {
+    totalPRs: number;
+    openPRs: number;
+    closedPRs: number;
+    prsByUser: Record<string, number>;
+  };
   activityTrend: 'increasing' | 'decreasing' | 'stable';
-};
+}
+
+// Define contribution types
+interface ContributionMetrics {
+  commits: number;
+  issues: number;
+  prs: number;
+  codeReviews: number;
+  discussions: number;
+  documentation: number;
+  lastActiveDate: Date;
+}
+
+// Calculate contribution score
+function calculateContributionScore(metrics: ContributionMetrics): number {
+  const weights = {
+    commits: 0.15,      // 提交次數 (15%)
+    issues: 0.2,        // 問題參與 (20%)
+    prs: 0.2,           // Pull Requests (20%)
+    codeReviews: 0.25,  // 代碼審查 (25%)
+    discussions: 0.1,   // 討論參與 (10%)
+    documentation: 0.1  // 文檔貢獻 (10%)
+  };
+
+  return (
+    metrics.commits * weights.commits +
+    metrics.issues * weights.issues +
+    metrics.prs * weights.prs +
+    metrics.codeReviews * weights.codeReviews +
+    metrics.discussions * weights.discussions +
+    metrics.documentation * weights.documentation
+  );
+}
 
 export class AnalyticsService {
   // Analyze commit statistics
@@ -164,43 +212,100 @@ export class AnalyticsService {
       userId: number, 
       commits: number, 
       issues: number, 
-      prs: number 
+      pullRequests: number,
+      codeReviews: number,
+      discussions: number,
+      documentation: number,
+      lastActiveDate: Date
     }>();
     
-    // Count commits
+    // Count commits and track last active date
     commits.forEach(commit => {
       if (commit.author) {
         const { login, id } = commit.author;
-        const userData = userMap.get(login) || { userId: id, commits: 0, issues: 0, prs: 0 };
+        const userData = userMap.get(login) || { 
+          userId: id, 
+          commits: 0, 
+          issues: 0, 
+          pullRequests: 0,
+          codeReviews: 0,
+          discussions: 0,
+          documentation: 0,
+          lastActiveDate: new Date(0)
+        };
         userData.commits++;
+        
+        // Check if commit message contains documentation keywords
+        if (commit.commit.message.toLowerCase().includes('doc') || 
+            commit.commit.message.toLowerCase().includes('readme')) {
+          userData.documentation++;
+        }
+        
+        // Update last active date
+        const commitDate = new Date(commit.commit.author.date);
+        if (commitDate > userData.lastActiveDate) {
+          userData.lastActiveDate = commitDate;
+        }
+        
         userMap.set(login, userData);
       }
     });
     
-    // Count issues
+    // Count issues and discussions
     issues.forEach(issue => {
       const { login, id } = issue.user;
-      const userData = userMap.get(login) || { userId: id, commits: 0, issues: 0, prs: 0 };
+      const userData = userMap.get(login) || { 
+        userId: id, 
+        commits: 0, 
+        issues: 0, 
+        pullRequests: 0,
+        codeReviews: 0,
+        discussions: 0,
+        documentation: 0,
+        lastActiveDate: new Date(0)
+      };
       userData.issues++;
+      
+      // Count discussions (comments)
+      userData.discussions += issue.comments;
+      
       userMap.set(login, userData);
     });
     
-    // Count pull requests
+    // Count pull requests and code reviews
     prs.forEach(pr => {
       const { login, id } = pr.user;
-      const userData = userMap.get(login) || { userId: id, commits: 0, issues: 0, prs: 0 };
-      userData.prs++;
+      const userData = userMap.get(login) || { 
+        userId: id, 
+        commits: 0, 
+        issues: 0, 
+        pullRequests: 0,
+        codeReviews: 0,
+        discussions: 0,
+        documentation: 0,
+        lastActiveDate: new Date(0)
+      };
+      userData.pullRequests++;
+      
+      // Count discussions (comments and review comments)
+      userData.discussions += pr.comments + pr.review_comments;
+      
+      // Count code reviews (review comments)
+      userData.codeReviews += pr.review_comments;
+      
       userMap.set(login, userData);
     });
     
     // Calculate total contributions and percentages
     const totalContributions = Array.from(userMap.values()).reduce(
-      (sum, { commits, issues, prs }) => sum + commits + issues + prs, 
+      (sum, { commits, issues, pullRequests, codeReviews, discussions, documentation }) => 
+        sum + commits + issues + pullRequests + codeReviews + discussions + documentation, 
       0
     );
     
     return Array.from(userMap.entries()).map(([user, data]) => {
-      const total = data.commits + data.issues + data.prs;
+      const total = data.commits + data.issues + data.pullRequests + 
+                   data.codeReviews + data.discussions + data.documentation;
       const percentage = totalContributions > 0 
         ? (total / totalContributions) * 100 
         : 0;
@@ -210,7 +315,11 @@ export class AnalyticsService {
         userId: data.userId,
         commits: data.commits,
         issues: data.issues,
-        pullRequests: data.prs,
+        pullRequests: data.pullRequests,
+        codeReviews: data.codeReviews,
+        discussions: data.discussions,
+        documentation: data.documentation,
+        lastActiveDate: data.lastActiveDate,
         totalContributions: total,
         contributionPercentage: Math.round(percentage * 100) / 100
       };
@@ -218,94 +327,165 @@ export class AnalyticsService {
   }
   
   // Calculate activity trend
-  calculateActivityTrend(
-    commits: GitHubCommit[], 
-    issues: GitHubIssue[], 
-    prs: GitHubPullRequest[]
-  ): { lastActivityDate: string, activityTrend: 'increasing' | 'decreasing' | 'stable' } {
-    // Find the most recent activity date
-    const allDates = [
-      ...commits.map(c => parseISO(c.commit.author.date)),
-      ...issues.map(i => parseISO(i.created_at)),
-      ...prs.map(p => parseISO(p.created_at))
-    ].sort((a, b) => b.getTime() - a.getTime());
-    
-    if (allDates.length === 0) {
-      return { 
-        lastActivityDate: 'No activity', 
-        activityTrend: 'stable' 
-      };
-    }
-    
-    const lastActivityDate = allDates[0].toISOString().split('T')[0];
-    
-    // Calculate activity over the past two weeks and compare trend
-    const twoWeeksAgo = new Date();
-    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    
-    const secondWeekActivity = allDates.filter(
-      date => date >= twoWeeksAgo && date < oneWeekAgo
-    ).length;
-    
-    const lastWeekActivity = allDates.filter(
-      date => date >= oneWeekAgo
-    ).length;
-    
-    let activityTrend: 'increasing' | 'decreasing' | 'stable';
-    
-    if (lastWeekActivity > secondWeekActivity * 1.2) {
-      activityTrend = 'increasing';
-    } else if (lastWeekActivity < secondWeekActivity * 0.8) {
-      activityTrend = 'decreasing';
+  calculateActivityTrend(commitsByDay: Record<string, number>): 'increasing' | 'decreasing' | 'stable' {
+    const dates = Object.keys(commitsByDay).sort();
+    if (dates.length < 2) return 'stable';
+
+    // Calculate average commits per day
+    const totalCommits = Object.values(commitsByDay).reduce((sum, count) => sum + count, 0);
+    const avgCommitsPerDay = totalCommits / dates.length;
+
+    // Split the timeline into two halves
+    const midPoint = Math.floor(dates.length / 2);
+    const firstHalf = dates.slice(0, midPoint);
+    const secondHalf = dates.slice(midPoint);
+
+    // Calculate average commits for each half
+    const firstHalfAvg = firstHalf.reduce((sum, date) => sum + (commitsByDay[date] || 0), 0) / firstHalf.length;
+    const secondHalfAvg = secondHalf.reduce((sum, date) => sum + (commitsByDay[date] || 0), 0) / secondHalf.length;
+
+    // Determine trend
+    const threshold = avgCommitsPerDay * 0.2; // 20% threshold for significant change
+    if (secondHalfAvg > firstHalfAvg + threshold) {
+      return 'increasing';
+    } else if (secondHalfAvg < firstHalfAvg - threshold) {
+      return 'decreasing';
     } else {
-      activityTrend = 'stable';
+      return 'stable';
     }
-    
-    return { lastActivityDate, activityTrend };
   }
   
   // Analyze team statistics
   analyzeTeamStats(
-    teamName: string,
+    repo: string,
     repoUrl: string,
     commits: GitHubCommit[],
     issues: GitHubIssue[],
     prs: GitHubPullRequest[]
   ): TeamStats {
+    // Analyze commits
     const commitStats = this.analyzeCommits(commits);
+    
+    // Analyze issues
     const issueStats = this.analyzeIssues(issues);
-    const pullRequestStats = this.analyzePullRequests(prs);
+    
+    // Analyze pull requests
+    const prStats = this.analyzePullRequests(prs);
+    
+    // Analyze user contributions with new metrics
     const userContributions = this.analyzeUserContributions(commits, issues, prs);
-    const { lastActivityDate, activityTrend } = this.calculateActivityTrend(commits, issues, prs);
+    
+    // Calculate activity trend
+    const activityTrend = this.calculateActivityTrend(commitStats.commitsByDay);
     
     return {
-      teamName,
-      repoUrl,
+      userContributions,
       commitStats,
       issueStats,
-      pullRequestStats,
-      userContributions,
-      lastActivityDate,
+      prStats,
       activityTrend
     };
   }
   
-  // Detect possible free riders
-  detectFreeRiders(teamStats: TeamStats): string[] {
-    const { userContributions } = teamStats;
+  // Detect possible free riders with comprehensive metrics
+  detectFreeRiders(teamStats: TeamStats): { 
+    freeRiders: string[],
+    warnings: Array<{ user: string, message: string }>,
+    recommendations: Array<{ user: string, suggestions: string[] }>
+  } {
+    const { userContributions, commitStats, issueStats, prStats } = teamStats;
     const totalUsers = userContributions.length;
     
-    if (totalUsers <= 1) return [];
+    if (totalUsers <= 1) return { freeRiders: [], warnings: [], recommendations: [] };
     
     // Calculate expected average contribution percentage
     const expectedPercentage = 100 / totalUsers;
-    const threshold = expectedPercentage * 0.4; // Below 40% of average
+    const warningThreshold = expectedPercentage * 0.6; // 60% of average
+    const freeRiderThreshold = expectedPercentage * 0.4; // 40% of average
     
-    return userContributions
-      .filter(u => u.contributionPercentage < threshold)
-      .map(u => u.user);
+    const results = {
+      freeRiders: [] as string[],
+      warnings: [] as Array<{ user: string, message: string }>,
+      recommendations: [] as Array<{ user: string, suggestions: string[] }>
+    };
+
+    // Calculate team's average activity metrics
+    const teamMetrics: ContributionMetrics = {
+      commits: commitStats.totalCommits / totalUsers,
+      issues: issueStats.totalIssues / totalUsers,
+      prs: prStats.totalPRs / totalUsers,
+      codeReviews: prStats.totalPRs * 0.5 / totalUsers, // Assuming each PR gets 0.5 reviews on average
+      discussions: (issueStats.totalIssues + prStats.totalPRs) * 0.3 / totalUsers, // Assuming 0.3 discussions per issue/PR
+      documentation: commitStats.totalCommits * 0.1 / totalUsers, // Assuming 10% of commits are documentation
+      lastActiveDate: new Date() // Not used in team metrics
+    };
+
+    userContributions.forEach(user => {
+      // Calculate user's contribution metrics
+      const userMetrics: ContributionMetrics = {
+        commits: user.commits,
+        issues: user.issues,
+        prs: user.pullRequests,
+        codeReviews: user.codeReviews || 0,
+        discussions: user.discussions || 0,
+        documentation: user.documentation || 0,
+        lastActiveDate: user.lastActiveDate || new Date(0)
+      };
+
+      // Calculate contribution score
+      const userScore = calculateContributionScore(userMetrics);
+      const expectedScore = calculateContributionScore(teamMetrics);
+      const contributionPercentage = (userScore / expectedScore) * 100;
+
+      // Check for free rider status
+      if (contributionPercentage < freeRiderThreshold) {
+        results.freeRiders.push(user.user);
+      } 
+      // Check for warning status
+      else if (contributionPercentage < warningThreshold) {
+        results.warnings.push({
+          user: user.user,
+          message: `Low contribution level detected (${contributionPercentage.toFixed(1)}% of expected)`
+        });
+      }
+
+      // Generate recommendations
+      const suggestions: string[] = [];
+      
+      if (userMetrics.commits < teamMetrics.commits * 0.5) {
+        suggestions.push('Consider making more code contributions');
+      }
+      if (userMetrics.issues < teamMetrics.issues * 0.5) {
+        suggestions.push('Consider participating more in issue discussions');
+      }
+      if (userMetrics.prs < teamMetrics.prs * 0.5) {
+        suggestions.push('Consider submitting more pull requests');
+      }
+      if (userMetrics.codeReviews < teamMetrics.codeReviews * 0.5) {
+        suggestions.push('Consider participating more in code reviews');
+      }
+      if (userMetrics.discussions < teamMetrics.discussions * 0.5) {
+        suggestions.push('Consider engaging more in team discussions');
+      }
+      if (userMetrics.documentation < teamMetrics.documentation * 0.5) {
+        suggestions.push('Consider contributing more to documentation');
+      }
+
+      // Check for inactivity
+      const daysInactive = Math.floor((new Date().getTime() - userMetrics.lastActiveDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysInactive > 7) {
+        suggestions.push(`You have been inactive for ${daysInactive} days. Consider re-engaging with the project.`);
+      }
+
+      if (suggestions.length > 0) {
+        results.recommendations.push({
+          user: user.user,
+          suggestions
+        });
+      }
+    });
+
+    return results;
   }
   
   // Detect deadline fighters (students who rush near deadline)
