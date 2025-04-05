@@ -108,89 +108,325 @@ const ViewMoreModal: React.FC<{
   title: string;
   children: React.ReactNode;
   showDownload?: boolean;
-}> = ({ isOpen, onClose, title, children, showDownload }) => {
+  repoName?: string;
+  details?: RepositoryDetails;
+  filteredData?: AnalysisData;
+  deadlineFighters?: Record<string, number>;
+  contributionsByUser?: Record<string, number>;
+  topContributors?: [string, number][];
+}> = ({ 
+  isOpen, 
+  onClose, 
+  title, 
+  children, 
+  showDownload,
+  repoName,
+  details,
+  filteredData,
+  deadlineFighters,
+  contributionsByUser,
+  topContributors
+}) => {
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   const handleDownloadPDF = async () => {
     if (!contentRef.current) return;
 
     try {
-      // Create a clone of the content
-      const element = contentRef.current.cloneNode(true) as HTMLElement;
+      // Create PDF
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      let y = margin;
+
+      // Add header
+      pdf.setFontSize(24);
+      pdf.setTextColor(37, 99, 235); // Blue-600
+      pdf.text(`Repository Report: ${repoName}`, pageWidth / 2, y, { align: 'center' });
+      y += 15;
+
+      // Add date and organization
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81); // Gray-700
+      pdf.text(`Generated on: ${new Date().toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      })}`, margin, y);
+      pdf.text(`Organization: ${ORGANIZATION}`, pageWidth - margin, y, { align: 'right' });
+      y += 10;
+
+      // Add horizontal line
+      pdf.setDrawColor(156, 163, 175); // Gray-400
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 15;
+
+      // Add description if available
+      if (details?.description) {
+        pdf.setFontSize(14);
+        pdf.setTextColor(37, 99, 235);
+        pdf.text('Project Description', margin, y);
+        y += 10;
+
+        pdf.setFontSize(12);
+        pdf.setTextColor(55, 65, 81);
+        const descriptionLines = pdf.splitTextToSize(details.description, pageWidth - 2 * margin);
+        pdf.text(descriptionLines, margin, y);
+        y += descriptionLines.length * 7 + 15;
+      }
+
+      // Add Summary section
+      pdf.setFontSize(16);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Summary', margin, y);
+      y += 10;
+
+      // Create summary table
+      const summaryData = [
+        ['Total Commits', filteredData?.commits.length || 0],
+        ['Total Issues', filteredData?.issues.length || 0],
+        ['Total Pull Requests', filteredData?.pullRequests.length || 0],
+        ['Total Contributors', filteredData?.contributors.length || 0]
+      ];
+
+      // Draw summary table
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81);
+      const cellWidth = (pageWidth - 2 * margin) / 2;
+      const cellHeight = 10;
+
+      summaryData.forEach(([label, value], index) => {
+        if (y > pageHeight - margin - cellHeight) {
+          pdf.addPage();
+          y = margin;
+        }
+        
+        // Draw cell borders
+        pdf.setDrawColor(209, 213, 219); // Gray-300
+        pdf.rect(margin, y, cellWidth, cellHeight);
+        pdf.rect(margin + cellWidth, y, cellWidth, cellHeight);
+        
+        // Add text
+        pdf.text(String(label), margin + 5, y + 7);
+        pdf.text(String(value), margin + cellWidth + 5, y + 7, { align: 'right' });
+        y += cellHeight;
+      });
+      y += 15;
+
+      // Add Individual Contributions section
+      pdf.setFontSize(16);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Individual Contributions', margin, y);
+      y += 10;
+
+      // Create contributions table
+      const tableData = filteredData?.contributors.map(contributor => [
+        contributor.login,
+        contributor.contributions,
+        filteredData.issues.filter(i => i.user.login === contributor.login).length,
+        filteredData.pullRequests.filter(pr => pr.user.login === contributor.login).length,
+        contributor.additions || 0,
+        contributor.deletions || 0,
+        contributor.timeSpent || 'N/A'
+      ]) || [];
+
+      // Draw contributions table
+      const headers = ['Contributor', 'Commits', 'Issues', 'PRs', 'Additions', 'Deletions', 'Time Spent'];
+      const colWidths = [40, 20, 20, 20, 25, 25, 30];
       
-      // Replace Tailwind classes with inline styles using standard colors
-      element.querySelectorAll('.bg-blue-600').forEach(el => {
-        (el as HTMLElement).style.backgroundColor = '#2563eb';
-        (el as HTMLElement).style.color = '#ffffff';
+      // Draw table header
+      if (y > pageHeight - margin - cellHeight) {
+        pdf.addPage();
+        y = margin;
+      }
+      
+      pdf.setFontSize(12);
+      pdf.setTextColor(37, 99, 235);
+      let x = margin;
+      headers.forEach((header, i) => {
+        pdf.text(String(header), x + 5, y + 7);
+        x += colWidths[i];
       });
-      element.querySelectorAll('.bg-yellow-50').forEach(el => {
-        (el as HTMLElement).style.backgroundColor = '#fefce8';
+      y += cellHeight;
+
+      // Draw table rows
+      pdf.setFontSize(11);
+      pdf.setTextColor(55, 65, 81);
+      tableData.forEach(row => {
+        if (y > pageHeight - margin - cellHeight) {
+          pdf.addPage();
+          y = margin;
+        }
+        
+        x = margin;
+        row.forEach((cell, i) => {
+          pdf.setDrawColor(209, 213, 219);
+          pdf.rect(x, y, colWidths[i], cellHeight);
+          pdf.text(String(cell), x + 5, y + 7);
+          x += colWidths[i];
+        });
+        y += cellHeight;
       });
-      element.querySelectorAll('.text-yellow-600').forEach(el => {
-        (el as HTMLElement).style.color = '#ca8a04';
+      y += 15;
+
+      // Add Potential Issues section
+      pdf.setFontSize(16);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Potential Issues', margin, y);
+      y += 10;
+
+      // Deadline Fighters
+      pdf.setFontSize(14);
+      pdf.setTextColor(202, 138, 4); // Yellow-600
+      pdf.text('Deadline Fighters:', margin, y);
+      y += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81);
+      const deadlineFightersList = deadlineFighters ? Object.entries(deadlineFighters)
+        .filter(([_, count]) => count > 5)
+        .map(([author]) => author) : [];
+
+      if (deadlineFightersList.length > 0) {
+        deadlineFightersList.forEach(fighter => {
+          if (y > pageHeight - margin - cellHeight) {
+            pdf.addPage();
+            y = margin;
+          }
+          pdf.text(`• ${fighter}`, margin + 5, y + 7);
+          y += cellHeight;
+        });
+      } else {
+        pdf.text('No deadline fighters detected', margin + 5, y + 7);
+        y += cellHeight;
+      }
+      y += 10;
+
+      // Free Riders
+      pdf.setFontSize(14);
+      pdf.setTextColor(220, 38, 38); // Red-600
+      pdf.text('Free Riders:', margin, y);
+      y += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81);
+      const freeRiders = contributionsByUser ? Object.entries(contributionsByUser)
+        .filter(([_, count]) => count < 3)
+        .map(([author]) => author) : [];
+
+      if (freeRiders.length > 0) {
+        freeRiders.forEach(rider => {
+          if (y > pageHeight - margin - cellHeight) {
+            pdf.addPage();
+            y = margin;
+          }
+          pdf.text(`• ${rider}`, margin + 5, y + 7);
+          y += cellHeight;
+        });
+      } else {
+        pdf.text('No free riders detected', margin + 5, y + 7);
+        y += cellHeight;
+      }
+      y += 15;
+
+      // Add Leaderboard section
+      pdf.setFontSize(16);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Leaderboard', margin, y);
+      y += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81);
+      pdf.text('Top 5 Contributors:', margin, y);
+      y += 10;
+
+      (topContributors || []).forEach(([author, count], index) => {
+        if (y > pageHeight - margin - cellHeight) {
+          pdf.addPage();
+          y = margin;
+        }
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🏅';
+        pdf.text(`${medal} ${author}: ${count} commits`, margin + 5, y + 7);
+        y += cellHeight;
       });
-      element.querySelectorAll('.text-yellow-500').forEach(el => {
-        (el as HTMLElement).style.color = '#eab308';
+      y += 15;
+
+      // Add Statistics section
+      pdf.setFontSize(16);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Statistics', margin, y);
+      y += 10;
+
+      // Issue Status Distribution
+      const openIssues = filteredData?.issues.filter(i => i.state === 'open').length || 0;
+      const closedIssues = filteredData?.issues.filter(i => i.state === 'closed').length || 0;
+
+      pdf.setFontSize(14);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Issue Status Distribution:', margin, y);
+      y += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81);
+      
+      // Draw issue status table
+      const issueData = [
+        ['Open Issues', openIssues],
+        ['Closed Issues', closedIssues]
+      ];
+
+      issueData.forEach(([label, value]) => {
+        if (y > pageHeight - margin - cellHeight) {
+          pdf.addPage();
+          y = margin;
+        }
+        
+        pdf.setDrawColor(209, 213, 219);
+        pdf.rect(margin, y, cellWidth, cellHeight);
+        pdf.rect(margin + cellWidth, y, cellWidth, cellHeight);
+        
+        pdf.text(String(label), margin + 5, y + 7);
+        pdf.text(String(value), margin + cellWidth + 5, y + 7, { align: 'right' });
+        y += cellHeight;
       });
-      element.querySelectorAll('.border-yellow-100').forEach(el => {
-        (el as HTMLElement).style.borderColor = '#fef9c3';
-      });
-      element.querySelectorAll('.bg-red-50').forEach(el => {
-        (el as HTMLElement).style.backgroundColor = '#fef2f2';
-      });
-      element.querySelectorAll('.text-red-600').forEach(el => {
-        (el as HTMLElement).style.color = '#dc2626';
-      });
-      element.querySelectorAll('.text-red-500').forEach(el => {
-        (el as HTMLElement).style.color = '#ef4444';
-      });
-      element.querySelectorAll('.border-red-100').forEach(el => {
-        (el as HTMLElement).style.borderColor = '#fee2e2';
-      });
-      element.querySelectorAll('.text-gray-700').forEach(el => {
-        (el as HTMLElement).style.color = '#374151';
-      });
-      element.querySelectorAll('.text-gray-500').forEach(el => {
-        (el as HTMLElement).style.color = '#6b7280';
-      });
-      element.querySelectorAll('.text-gray-800').forEach(el => {
-        (el as HTMLElement).style.color = '#1f2937';
-      });
-      element.querySelectorAll('.bg-gray-50').forEach(el => {
-        (el as HTMLElement).style.backgroundColor = '#f9fafb';
+      y += 15;
+
+      // Add Additional Information section
+      pdf.setFontSize(16);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text('Additional Information', margin, y);
+      y += 10;
+
+      pdf.setFontSize(12);
+      pdf.setTextColor(55, 65, 81);
+      
+      const additionalInfo = [
+        'Data Source: GitHub API',
+        'Note: Data may be incomplete due to API rate limits',
+        'For detailed visualizations, please refer to the web interface'
+      ];
+
+      additionalInfo.forEach(info => {
+        if (y > pageHeight - margin - cellHeight) {
+          pdf.addPage();
+          y = margin;
+        }
+        pdf.text(String(info), margin, y + 7);
+        y += cellHeight;
       });
 
-      // Add the clone to the document temporarily
-      element.style.position = 'fixed';
-      element.style.top = '-9999px';
-      element.style.background = '#ffffff';
-      element.style.padding = '32px';
-      document.body.appendChild(element);
+      // Add footer
+      pdf.setFontSize(10);
+      pdf.setTextColor(107, 114, 128); // Gray-500
+      pdf.text('Generated by GitHub Classroom Tracker', pageWidth / 2, pageHeight - margin, { align: 'center' });
 
-      // Generate image
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        removeContainer: true,
-      });
-
-      // Remove the clone
-      document.body.removeChild(element);
-
-      // Convert to image and trigger download
-      const image = canvas.toDataURL('image/png', 1.0);
-      const downloadLink = document.createElement('a');
-      downloadLink.href = image;
-      downloadLink.download = `team-analysis-${new Date().toISOString().slice(0, 10)}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      // Save PDF
+      pdf.save(`repository-report-${repoName}-${new Date().toISOString().slice(0, 10)}.pdf`);
 
     } catch (error) {
-      console.error('Error generating image:', error);
-      alert('Failed to generate image. Please try again.');
+      console.error('Error generating PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
     }
   };
 
@@ -279,6 +515,51 @@ export default function RepositoryDetailsPage() {
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedContributor, setSelectedContributor] = useState<string>('all');
+
+  // Filter data based on selected contributor
+  const filteredData = useMemo(() => {
+    if (!analysisData || selectedContributor === 'all') {
+      return analysisData;
+    }
+
+    return {
+      ...analysisData,
+      commits: analysisData.commits.filter(commit => commit.author === selectedContributor),
+      issues: analysisData.issues.filter(issue => issue.user.login === selectedContributor),
+      pullRequests: analysisData.pullRequests.filter(pr => pr.user.login === selectedContributor),
+      contributors: analysisData.contributors.filter(contributor => contributor.login === selectedContributor)
+    };
+  }, [analysisData, selectedContributor]);
+
+  // Calculate contribution metrics
+  const contributionsByUser = useMemo(() => {
+    if (!filteredData?.commits) return {};
+    return filteredData.commits.reduce((acc: Record<string, number>, commit) => {
+      acc[commit.author] = (acc[commit.author] || 0) + 1;
+      return acc;
+    }, {});
+  }, [filteredData?.commits]);
+
+  // Calculate deadline fighters
+  const deadlineFighters = useMemo(() => {
+    if (!filteredData?.commits) return {};
+    const lastDay = new Date();
+    lastDay.setDate(lastDay.getDate() - 1);
+    return filteredData.commits
+      .filter(commit => new Date(commit.date) > lastDay)
+      .reduce((acc: Record<string, number>, commit) => {
+        acc[commit.author] = (acc[commit.author] || 0) + 1;
+        return acc;
+      }, {});
+  }, [filteredData?.commits]);
+
+  // Calculate top contributors
+  const topContributors = useMemo(() => {
+    if (!contributionsByUser) return [];
+    return Object.entries(contributionsByUser)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+  }, [contributionsByUser]);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -409,21 +690,6 @@ export default function RepositoryDetailsPage() {
       setAnalyzing(false);
     }
   };
-
-  // Filter data based on selected contributor
-  const filteredData = useMemo(() => {
-    if (!analysisData || selectedContributor === 'all') {
-      return analysisData;
-    }
-
-    return {
-      ...analysisData,
-      commits: analysisData.commits.filter(commit => commit.author === selectedContributor),
-      issues: analysisData.issues.filter(issue => issue.user.login === selectedContributor),
-      pullRequests: analysisData.pullRequests.filter(pr => pr.user.login === selectedContributor),
-      contributors: analysisData.contributors.filter(contributor => contributor.login === selectedContributor)
-    };
-  }, [analysisData, selectedContributor]);
 
   const renderIssueItem = (issue: any) => (
     <div key={issue.title} className="border-b border-gray-100 pb-4 last:border-b-0">
@@ -1134,6 +1400,12 @@ export default function RepositoryDetailsPage() {
               onClose={() => setShowAnalyticsModal(false)}
               title="Team Analysis"
               showDownload={true}
+              repoName={repoName}
+              details={details || undefined}
+              filteredData={filteredData || undefined}
+              deadlineFighters={deadlineFighters}
+              contributionsByUser={contributionsByUser}
+              topContributors={topContributors}
             >
               {renderAnalytics()}
             </ViewMoreModal>
@@ -1144,6 +1416,9 @@ export default function RepositoryDetailsPage() {
               isOpen={showIssueStatusModal}
               onClose={() => setShowIssueStatusModal(false)}
               title="Issue Status Distribution"
+              repoName={repoName}
+              details={details || undefined}
+              filteredData={filteredData || undefined}
             >
               {renderIssueStatusChart()}
             </ViewMoreModal>
@@ -1154,6 +1429,9 @@ export default function RepositoryDetailsPage() {
               isOpen={showContributorsModal}
               onClose={() => setShowContributorsModal(false)}
               title="Contribution Statistics"
+              repoName={repoName}
+              details={details || undefined}
+              filteredData={filteredData || undefined}
             >
               {renderContributorsChart()}
             </ViewMoreModal>
