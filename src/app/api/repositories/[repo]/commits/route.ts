@@ -18,6 +18,7 @@ export async function GET(
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json',
         },
       }
     );
@@ -28,15 +29,57 @@ export async function GET(
 
     const commits = await response.json();
     
-    // Format the commits data for the UI
-    const formattedCommits = commits.map((commit: any) => ({
-      sha: commit.sha,
-      message: commit.commit.message,
-      author: commit.commit.author.name,
-      date: commit.commit.author.date,
-    }));
+    // Track unique contributors
+    const uniqueContributors = new Set();
+    commits.forEach((commit: any) => {
+      const author = commit.author?.login || commit.commit?.author?.name;
+      if (author) {
+        uniqueContributors.add(author);
+      }
+    });
+    
+    // Fetch detailed commit information for each commit
+    const detailedCommits = await Promise.all(
+      commits.map(async (commit: any) => {
+        const detailResponse = await fetch(
+          `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/commits/${commit.sha}`,
+          {
+            headers: {
+              Authorization: `Bearer ${GITHUB_TOKEN}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          }
+        );
 
-    return NextResponse.json(formattedCommits);
+        if (!detailResponse.ok) {
+          console.error(`Failed to fetch details for commit ${commit.sha}`);
+          return {
+            sha: commit.sha,
+            message: commit.commit.message,
+            author: commit.author?.login || commit.commit.author.name,
+            date: commit.commit.author.date,
+            stats: { additions: 0, deletions: 0 },
+            files: []
+          };
+        }
+
+        const details = await detailResponse.json();
+        return {
+          sha: details.sha,
+          message: details.commit.message,
+          author: details.author?.login || details.commit.author.name,
+          date: details.commit.author.date,
+          stats: details.stats,
+          files: details.files
+        };
+      })
+    );
+
+    return NextResponse.json({
+      commits: detailedCommits,
+      totalContributors: uniqueContributors.size
+    });
   } catch (error) {
     console.error('Error fetching commits:', error);
     return NextResponse.json(

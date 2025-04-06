@@ -1,17 +1,14 @@
 import { NextResponse } from 'next/server';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ORGANIZATION = process.env.GITHUB_ORGANIZATION;
+const ORGANIZATION = process.env.GITHUB_ORGANIZATION || '23101659d';
 
 export async function GET(
   request: Request,
   { params }: { params: { repo: string } }
 ) {
-  if (!GITHUB_TOKEN || !ORGANIZATION) {
-    return NextResponse.json(
-      { error: 'Missing required environment variables' },
-      { status: 500 }
-    );
+  if (!GITHUB_TOKEN) {
+    return NextResponse.json({ error: 'GitHub token not configured' }, { status: 500 });
   }
 
   try {
@@ -22,92 +19,80 @@ export async function GET(
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json',
         },
       }
     );
 
     if (!repoResponse.ok) {
-      throw new Error('Failed to fetch repository details');
+      throw new Error(`GitHub API responded with status ${repoResponse.status}`);
     }
 
     const repoData = await repoResponse.json();
 
-    // Fetch README content
-    const readmeResponse = await fetch(
-      `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/readme`,
+    // Fetch commits to count unique contributors
+    const commitsResponse = await fetch(
+      `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/commits`,
       {
         headers: {
           Authorization: `Bearer ${GITHUB_TOKEN}`,
-          'Accept': 'application/vnd.github.raw+json',
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github.v3+json',
         },
       }
     );
 
-    let readme = null;
-    if (readmeResponse.ok) {
-      readme = await readmeResponse.text();
+    if (!commitsResponse.ok) {
+      throw new Error(`GitHub API responded with status ${commitsResponse.status}`);
     }
 
-    // Format the response
-    const formattedData = {
+    const commits = await commitsResponse.json();
+    
+    // Count unique contributors from commits, excluding github-classroom[bot]
+    const uniqueContributors = new Set();
+    commits.forEach((commit: any) => {
+      const author = commit.author?.login || commit.commit?.author?.name;
+      if (author && author !== 'github-classroom[bot]') {
+        uniqueContributors.add(author);
+      }
+    });
+
+    // Fetch README content if available
+    let readme = null;
+    try {
+      const readmeResponse = await fetch(
+        `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/readme`,
+        {
+          headers: {
+            Authorization: `Bearer ${GITHUB_TOKEN}`,
+            'Accept': 'application/vnd.github.v3.raw',
+          },
+        }
+      );
+      if (readmeResponse.ok) {
+        readme = await readmeResponse.text();
+      }
+    } catch (error) {
+      console.error('Error fetching README:', error);
+    }
+
+    return NextResponse.json({
       name: repoData.name,
-      description: repoData.description || 'No description available',
+      description: repoData.description,
       owner: repoData.owner.login,
       lastUpdated: repoData.updated_at,
       stars: repoData.stargazers_count,
       forks: repoData.forks_count,
-      language: repoData.language || 'Not specified',
-      branches: 0, // We'll update this below
-      contributors: 0, // We'll update this below
+      language: repoData.language,
+      branchCount: repoData.default_branch ? 1 : 0,
+      contributors: uniqueContributors.size,
       html_url: repoData.html_url,
-      readme: readme,
-    };
-
-    // Fetch branch count
-    try {
-      const branchesResponse = await fetch(
-        `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/branches`,
-        {
-          headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      
-      if (branchesResponse.ok) {
-        const branchesData = await branchesResponse.json();
-        formattedData.branches = branchesData.length;
-      }
-    } catch (error) {
-      console.error('Error fetching branches:', error);
-    }
-
-    // Fetch contributors count
-    try {
-      const contributorsResponse = await fetch(
-        `https://api.github.com/repos/${ORGANIZATION}/${params.repo}/contributors`,
-        {
-          headers: {
-            Authorization: `Bearer ${GITHUB_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      
-      if (contributorsResponse.ok) {
-        const contributorsData = await contributorsResponse.json();
-        formattedData.contributors = contributorsData.length;
-      }
-    } catch (error) {
-      console.error('Error fetching contributors:', error);
-    }
-
-    return NextResponse.json(formattedData);
+      readme,
+    });
   } catch (error) {
-    console.error('Error in repository details API:', error);
+    console.error('Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch repository details' },
+      { error: 'Failed to fetch repository details' },
       { status: 500 }
     );
   }

@@ -661,25 +661,23 @@ export default function RepositoryDetailsPage() {
     setAnalyzing(true);
     setError(null);
     try {
-      const [commitsRes, issuesRes, contributorsRes, pullsRes] = await Promise.all([
+      const [commitsRes, issuesRes, pullsRes] = await Promise.all([
         fetch(`/api/repositories/${repoName}/commits`),
         fetch(`/api/repositories/${repoName}/issues`),
-        fetch(`/api/repositories/${repoName}/contributors`),
         fetch(`/api/repositories/${repoName}/pulls`),
       ]);
 
-      if (!commitsRes.ok || !issuesRes.ok || !contributorsRes.ok || !pullsRes.ok) {
+      if (!commitsRes.ok || !issuesRes.ok || !pullsRes.ok) {
         const errorResponses = await Promise.all([
           commitsRes.ok ? null : commitsRes.text(),
           issuesRes.ok ? null : issuesRes.text(),
-          contributorsRes.ok ? null : contributorsRes.text(),
           pullsRes.ok ? null : pullsRes.text(),
         ]);
         
         const errors = errorResponses
           .map((res, index) => {
             if (!res) return null;
-            const endpoints = ['commits', 'issues', 'contributors', 'pulls'];
+            const endpoints = ['commits', 'issues', 'pulls'];
             return `${endpoints[index]}: ${res}`;
           })
           .filter(Boolean)
@@ -688,58 +686,92 @@ export default function RepositoryDetailsPage() {
         throw new Error(`Failed to fetch analysis data: ${errors}`);
       }
 
-      const [commits, issues, contributors, pullRequests] = await Promise.all([
+      const [commitsData, issues, pullRequests] = await Promise.all([
         commitsRes.json(),
         issuesRes.json(),
-        contributorsRes.json(),
         pullsRes.json(),
       ]);
 
-      // Calculate time spent for each contributor
-      const contributorsWithTime = contributors.map((contributor: { login: string; additions: number; deletions: number; [key: string]: any }) => {
-        // Filter commits by matching either author.login or commit.author.name
-        const userCommits = commits.filter((commit: any) => {
-          const authorLogin = commit.author?.login || commit.author;
-          const authorName = commit.commit?.author?.name;
-          return authorLogin === contributor.login || authorName === contributor.login;
-        });
-        
-        if (userCommits.length === 0) {
-          return { ...contributor, timeSpent: '0 minutes' };
-        }
+      const commits = commitsData.commits;
+      
+      // Filter out github-classroom[bot] commits
+      const filteredCommits = commits.filter((commit: any) => {
+        const authorLogin = commit.author?.login || commit.commit?.author?.name || commit.author;
+        return authorLogin && authorLogin !== 'github-classroom[bot]';
+      });
+      
+      // Calculate contributor statistics from commits
+      const contributorStats = new Map();
+      
+      filteredCommits.forEach((commit: any) => {
+        const authorLogin = commit.author?.login || commit.commit?.author?.name || commit.author;
+        if (!authorLogin) return;
 
+        const stats = contributorStats.get(authorLogin) || {
+          login: authorLogin,
+          contributions: 0,
+          additions: 0,
+          deletions: 0,
+          commits: []
+        };
+
+        stats.contributions++;
+        // Use commit.stats directly from the API response
+        if (commit.stats) {
+          stats.additions += commit.stats.additions || 0;
+          stats.deletions += commit.stats.deletions || 0;
+        }
+        stats.commits.push(commit);
+        contributorStats.set(authorLogin, stats);
+      });
+
+      // Convert contributor stats to array and calculate time spent
+      const contributors = Array.from(contributorStats.values()).map(stats => {
         // Calculate total time based on:
         // 1. Base time: 15 minutes per commit
         // 2. Additional time: 1 hour per 100 lines of code changed
-        const baseTimeMinutes = userCommits.length * 15;
-        const totalChanges = (contributor.additions || 0) + (contributor.deletions || 0);
+        const baseTimeMinutes = stats.contributions * 15;
+        const totalChanges = stats.additions + stats.deletions;
         const changeTimeMinutes = Math.round((totalChanges / 100) * 60); // 1 hour = 60 minutes per 100 lines
 
         // Total time in minutes
         const totalMinutes = baseTimeMinutes + changeTimeMinutes;
 
         // Format time based on duration
+        let timeSpent;
         if (totalMinutes >= 10080) { // More than 1 week (7 * 24 * 60 = 10080 minutes)
           const weeks = Math.floor(totalMinutes / 10080);
           const remainingDays = Math.floor((totalMinutes % 10080) / 1440); // 1440 = 24 * 60
-          return { ...contributor, timeSpent: `${weeks}w ${remainingDays}d` };
+          timeSpent = `${weeks}w ${remainingDays}d`;
         } else if (totalMinutes >= 1440) { // More than 1 day
           const days = Math.floor(totalMinutes / 1440);
           const remainingHours = Math.floor((totalMinutes % 1440) / 60);
-          return { ...contributor, timeSpent: `${days}d ${remainingHours}h` };
+          timeSpent = `${days}d ${remainingHours}h`;
         } else if (totalMinutes >= 60) { // More than 1 hour
           const hours = Math.floor(totalMinutes / 60);
           const remainingMinutes = totalMinutes % 60;
-          return { ...contributor, timeSpent: `${hours}h ${remainingMinutes}m` };
+          timeSpent = `${hours}h ${remainingMinutes}m`;
         } else {
-          return { ...contributor, timeSpent: `${totalMinutes}m` };
+          timeSpent = `${totalMinutes}m`;
         }
+
+        return {
+          login: stats.login,
+          contributions: stats.contributions,
+          additions: stats.additions,
+          deletions: stats.deletions,
+          timeSpent
+        };
       });
 
+      if (details) {
+        details.contributors = commitsData.totalContributors;
+      }
+
       setAnalysisData({ 
-        commits, 
+        commits: filteredCommits, 
         issues, 
-        contributors: contributorsWithTime, 
+        contributors, 
         pullRequests 
       });
       setShowAnalysis(true);
