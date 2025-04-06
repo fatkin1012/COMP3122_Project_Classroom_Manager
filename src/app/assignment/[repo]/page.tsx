@@ -1421,7 +1421,7 @@ export default function RepositoryDetailsPage() {
                 <div className="flex items-center space-x-3">
                   <ChartBarIcon className="h-8 w-8 text-gray-500" />
                   <div>
-                    <div className="text-2xl font-bold text-gray-800">2</div>
+                    <div className="text-2xl font-bold text-gray-800">{branches.length}</div>
                     <div className="text-sm text-gray-500">Branches</div>
                   </div>
                 </div>
