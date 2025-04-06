@@ -764,8 +764,12 @@ export default function RepositoryDetailsPage() {
         };
       });
 
+      // Update details with the correct number of contributors (excluding github-classroom[bot])
       if (details) {
-        details.contributors = commitsData.totalContributors;
+        setDetails({
+          ...details,
+          contributors: contributorStats.size
+        });
       }
 
       setAnalysisData({ 
