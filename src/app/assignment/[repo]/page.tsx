@@ -647,18 +647,47 @@ export default function RepositoryDetailsPage() {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const response = await fetch(`/api/repositories/${repoName}/branches`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch branches');
+        // Add error logging to debug the issue
+        console.log(`Fetching branches for repo: ${repoName}`);
+        
+        // Add proper headers and error handling
+        const response = await fetch(`/api/repositories/${repoName}/branches`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+        });
+        
+        // Log response status to debug
+        console.log(`Branches API status: ${response.status}`);
+        
+        // Check if response is JSON
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Server returned non-JSON response for branches');
+          throw new Error('Server returned non-JSON response');
         }
+
         const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('API Error:', data);
+          throw new Error(data.error || 'Failed to fetch branches');
+        }
+
+        console.log(`Retrieved ${data.length} branches`);
         setBranches(data);
       } catch (err) {
         console.error('Error fetching branches:', err);
+        // Don't set error state for non-critical feature to prevent UI disruption
+        setBranches([]);
       }
     };
 
-    fetchBranches();
+    if (repoName) {
+      fetchBranches();
+    }
   }, [repoName]);
 
   const handleAnalyze = async () => {
