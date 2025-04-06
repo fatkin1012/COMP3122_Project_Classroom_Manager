@@ -86,6 +86,7 @@ const MainPage = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white p-6">
         <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>

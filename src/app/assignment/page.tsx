@@ -48,7 +48,12 @@ const AssignmentPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 控制側邊欄的狀態
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   // Branch modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState<string>('');
@@ -131,51 +136,76 @@ const AssignmentPage = () => {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800 text-white p-6">
-        <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
-        <nav className="space-y-4">
-          <Link href="/" className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
-            <HomeIcon className="h-6 w-6" />
-            <span>Home</span>
-          </Link>
-          {[
-            { icon: <ShoppingBagIcon className="h-6 w-6" />, text: 'Assignments', href: '/assignment' },
-          ].map((item) => (
-            <Link key={item.text} href={item.href} className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
-              {item.icon}
-              <span>{item.text}</span>
+      {isSidebarOpen && (
+        <div className="w-64 bg-gray-800 text-white p-6 fixed h-full">
+          <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
+          <nav className="space-y-4">
+            <Link href="/" className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
+              <HomeIcon className="h-6 w-6" />
+              <span>Home</span>
             </Link>
-          ))}
-        </nav>
-      </div>
+            {[
+              { icon: <ShoppingBagIcon className="h-6 w-6" />, text: 'Assignments', href: '/assignment' },
+            ].map((item) => (
+              <Link key={item.text} href={item.href} className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
+                {item.icon}
+                <span>{item.text}</span>
+              </Link>
+            ))}
+
+            {/* New Link to GitHub Classroom */}
+            <Link
+              href="https://classroom.github.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg"
+            >
+              <CodeBracketIcon className="h-6 w-6" />
+              <span>Go to Classroom</span>
+            </Link>
+          </nav>
+
+          {/* Sidebar Buttons */}
+          <div className="absolute bottom-6 left-6 right-6 space-y-4">
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <QuestionMarkCircleIcon className="h-6 w-6" />
+              <span>Help</span>
+            </button>
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <BellIcon className="h-6 w-6" />
+              <span>Notifications</span>
+            </button>
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <ArrowRightOnRectangleIcon className="h-6 w-6" />
+              <span>Logout</span>
+            </button>
+          </div>
+          
+        </div>
+      )}
 
       {/* Main Content */}
-      <div className="flex-1 p-8">
+      <div className={`flex-1 p-8 ${isSidebarOpen ? 'ml-64' : ''}`}>
+        {/* Toggle Sidebar Button */}
+        {/* <button
+          onClick={toggleSidebar}
+          className="p-2 bg-gray-800 text-white rounded-lg mb-4 hover:bg-gray-700"
+        >
+          {isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
+        </button> */}
+
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Classroom Repositories</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Assignments</h1>  
+          {/* Classroom Repositories */}
           <div className="w-96">
             <input
               type="text"
-              placeholder="Search repositories..."
+              placeholder=" Search repositories..."
               className="w-full p-2 rounded-full border border-gray-300"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
-          <div className="flex space-x-4">
-            <button className="p-2 rounded-full hover:bg-gray-200">
-              <QuestionMarkCircleIcon className="h-6 w-6 text-gray-600" />
-            </button>
-            <button className="p-2 rounded-full hover:bg-gray-200">
-              <BellIcon className="h-6 w-6 text-gray-600" />
-            </button>
-            <button className="p-2 rounded-full hover:bg-gray-200">
-              <Cog6ToothIcon className="h-6 w-6 text-gray-600" />
-            </button>
-            <button className="p-2 rounded-full bg-gray-200">
-              <span className="font-medium text-gray-700">JD</span>
-            </button>
           </div>
         </div>
 
@@ -250,4 +280,4 @@ const AssignmentPage = () => {
   );
 };
 
-export default AssignmentPage; 
+export default AssignmentPage;

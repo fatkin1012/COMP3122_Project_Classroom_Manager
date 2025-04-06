@@ -16,6 +16,7 @@ import {
   UserIcon,
   BellIcon,
   QuestionMarkCircleIcon,
+  ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
   ChartBarIcon,
   DocumentTextIcon,
@@ -1197,7 +1198,7 @@ export default function RepositoryDetailsPage() {
     return (
       <div className="flex min-h-screen bg-gray-50">
         {/* Sidebar */}
-        <div className="w-64 bg-gray-800 text-white p-6">
+        <div className="w-64 bg-gray-800 text-white p-6 fixed h-full">
           <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
           <nav className="space-y-4">
             <Link href="/" className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
@@ -1212,8 +1213,34 @@ export default function RepositoryDetailsPage() {
                 <span>{item.text}</span>
               </Link>
             ))}
+            <Link
+              href="https://classroom.github.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg"
+            >
+              <CodeBracketIcon className="h-6 w-6" />
+              <span>Go to Classroom</span>
+          </Link>
           </nav>
+
+          <div className="absolute bottom-6 left-6 right-6 space-y-4">
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <QuestionMarkCircleIcon className="h-6 w-6" />
+              <span>Help</span>
+            </button>
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <BellIcon className="h-6 w-6" />
+              <span>Notifications</span>
+            </button>
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <ArrowRightOnRectangleIcon className="h-6 w-6" />
+              <span>Logout</span>
+            </button>
+          </div>
+
         </div>
+        
 
         <div className="flex-1 p-8 flex items-center justify-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div>
@@ -1225,7 +1252,7 @@ export default function RepositoryDetailsPage() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800 text-white p-6">
+      <div className="w-64 bg-gray-800 text-white p-6 fixed h-full">
         <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
         <nav className="space-y-4">
           <Link href="/" className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
@@ -1240,37 +1267,60 @@ export default function RepositoryDetailsPage() {
               <span>{item.text}</span>
             </Link>
           ))}
+
+          <Link
+              href="https://classroom.github.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg"
+            >
+              <CodeBracketIcon className="h-6 w-6" />
+              <span>Go to Classroom</span>
+          </Link>
         </nav>
+
+        <div className="absolute bottom-6 left-6 right-6 space-y-4">
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <QuestionMarkCircleIcon className="h-6 w-6" />
+              <span>Help</span>
+            </button>
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <BellIcon className="h-6 w-6" />
+              <span>Notifications</span>
+            </button>
+            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+              <ArrowRightOnRectangleIcon className="h-6 w-6" />
+              <span>Logout</span>
+            </button>
+          </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8">
+      <div className="flex-1 p-8 ml-64">
+
+
+
+
+
+
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
+
+          
           <div className="flex items-center space-x-4">
-            <Link 
+            {/* <Link 
               href="/assignment"
               className="text-gray-600 hover:text-gray-800"
             >
               ← Back to Assignments
-            </Link>
+            </Link> */}
             <h1 className="text-2xl font-bold text-gray-800">{repoName}</h1>
           </div>
+
           <div className="flex space-x-4">
-            {!showAnalysis && (
-              <button 
-                onClick={handleAnalyze}
-                disabled={analyzing}
-                className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
-                  analyzing 
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
-              >
-                <ChartPieIcon className="h-5 w-5" />
-                <span>{analyzing ? 'Analyzing...' : 'Analyze'}</span>
-              </button>
-            )}
+
+
+{/*             
             {showAnalysis && (
               <>
                 <button
@@ -1280,6 +1330,8 @@ export default function RepositoryDetailsPage() {
                   <UsersIcon className="h-5 w-5" />
                   <span>Team Analysis</span>
                 </button>
+
+
                 {filteredData && (
                   <div className="relative">
                     <select
@@ -1296,9 +1348,11 @@ export default function RepositoryDetailsPage() {
                     </select>
                   </div>
                 )}
+
               </>
-            )}
-            {showAnalysis && (
+            )} */}
+
+            {/* {showAnalysis && (
               <button
                 onClick={() => {
                   setShowAISummaryModal(true);
@@ -1311,25 +1365,191 @@ export default function RepositoryDetailsPage() {
                 </svg>
                 <span>AI Summary</span>
               </button>
-            )}
-            <button className="p-2 rounded-full hover:bg-gray-200">
+            )} */}
+
+
+                  {!showAnalysis && (
+                    <button 
+                      onClick={handleAnalyze}
+                      
+                      disabled={analyzing}
+                      className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
+                        analyzing 
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                          : 'bg-blue-600 text-white hover:bg-blue-700'
+                      }`}
+                    >
+                      <ChartPieIcon className="h-5 w-5" />
+                      <span>{analyzing ? 'Analyzing...' : 'Analyze'}</span>
+                    </button>
+                  )}
+
+            
+
+
+            
+
+
+            {/* <button className="p-2 rounded-full hover:bg-gray-200">
               <QuestionMarkCircleIcon className="h-6 w-6 text-gray-600" />
             </button>
+            
             <button className="p-2 rounded-full hover:bg-gray-200">
               <BellIcon className="h-6 w-6 text-gray-600" />
             </button>
+
             <button className="p-2 rounded-full hover:bg-gray-200">
               <Cog6ToothIcon className="h-6 w-6 text-gray-600" />
             </button>
+
             <button className="p-2 rounded-full bg-gray-200">
               <span className="font-medium text-gray-700">JD</span>
-            </button>
+            </button> */}
+
+
+
+
+
           </div>
+
+
+
         </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         {/* Repository Details */}
         {details && (
           <div className="space-y-6">
+
+            {/* <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex justify-between items-start">
+                <div className="flex space-x-4">
+
+                  <button
+                    onClick={() => setShowAnalysis(false)}
+                    className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
+                      !showAnalysis
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    <span>Overview</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowAnalysis(true)}
+                    className={`px-4 py-2 rounded-lg flex items-center space-x-2 ${
+                      showAnalysis
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    <span>Details</span>
+                  </button>
+
+                </div>
+              </div>
+            </div> */}
+
+            {showAnalysis && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="flex justify-between items-start">
+                <div className="flex space-x-4">
+                  
+
+                  
+
+                  {showAnalysis && (
+                    <>  
+                      {filteredData && (
+                        // <span className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-600">
+                        
+
+                          <div className="relative float-right ml-auto">
+                        <select
+                          value={selectedContributor}
+                          onChange={(e) => setSelectedContributor(e.target.value)}
+                          className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="all">All Contributors</option>
+                          {filteredData.contributors.map(contributor => (
+                            <option key={contributor.login} value={contributor.login}>
+                              @{contributor.login}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                        // </span>
+
+                        
+                    )}
+
+                    {showAnalysis && (
+                      <>
+                        <button
+                          onClick={() => setShowAnalyticsModal(true)}
+                          className="px-4 py-2 rounded-lg flex items-center space-x-2 bg-green-600 text-white hover:bg-green-700"
+                        >
+                          <UsersIcon className="h-5 w-5" />
+                          <span>Team Analysis</span>
+                        </button>
+
+
+                        {/* {filteredData && (
+                          <div className="relative">
+                            <select
+                              value={selectedContributor}
+                              onChange={(e) => setSelectedContributor(e.target.value)}
+                              className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="all">All Contributors</option>
+                              {filteredData.contributors.map(contributor => (
+                                <option key={contributor.login} value={contributor.login}>
+                                  @{contributor.login}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )} */}
+
+                      </>
+                    )}
+                    {/*  */}
+                    {showAnalysis && (
+                      <button
+                        onClick={() => {
+                          setShowAISummaryModal(true);
+                          generateAISummary();
+                        }}
+                        className="px-4 py-2 rounded-lg flex items-center space-x-2 bg-purple-600 text-white hover:bg-purple-700"
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <span>AI Summary</span>
+                      </button>
+                    )}
+                    </>
+                  )}
+
+                </div>
+              </div>
+            </div>
+            )}
+
             {/* Overview Card */}
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="flex justify-between items-start">
@@ -1419,6 +1639,8 @@ export default function RepositoryDetailsPage() {
                 </div>
               </div>
             )}
+
+
 
             {/* Analysis Section */}
             {showAnalysis && filteredData && (
@@ -1571,6 +1793,13 @@ export default function RepositoryDetailsPage() {
             )}
           </div>
         )}
+
+
+
+
+
+
+
 
         {/* Modals */}
         <AnimatePresence>
