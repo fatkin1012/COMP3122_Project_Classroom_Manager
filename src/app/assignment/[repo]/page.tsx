@@ -33,7 +33,7 @@ import { Tooltip as TippyTooltip } from 'react-tippy';
 import 'react-tippy/dist/tippy.css';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
 const ORGANIZATION = process.env.NEXT_PUBLIC_GITHUB_ORGANIZATION || '23101659d';
 
@@ -500,6 +500,8 @@ const isCommitWithLogin = (commit: any): boolean => {
 export default function RepositoryDetailsPage() {
   const params = useParams();
   const repoName = params.repo as string;
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   
   const [details, setDetails] = useState<RepositoryDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -619,6 +621,7 @@ export default function RepositoryDetailsPage() {
   }, [contributionsByUser]);
 
   useEffect(() => {
+    setMounted(true);
     const fetchDetails = async () => {
       try {
         const response = await fetch(`/api/repositories/${repoName}`);
@@ -1194,9 +1197,16 @@ export default function RepositoryDetailsPage() {
     }
   };
 
+  // Avoid hydration issues
+  if (!mounted) {
+    return <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div>
+    </div>;
+  }
+
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-gray-50">
+      <div className="flex min-h-screen bg-[var(--background)] text-[var(--foreground)]">
         {/* Sidebar */}
         <div className="w-64 bg-gray-800 text-white p-6 fixed h-full">
           <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
@@ -1225,15 +1235,31 @@ export default function RepositoryDetailsPage() {
           </nav>
 
           <div className="absolute bottom-6 left-6 right-6 space-y-4">
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => window.open('/help', '_blank')}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <QuestionMarkCircleIcon className="h-6 w-6" />
               <span>Help</span>
             </button>
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => router.push('/notifications')}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <BellIcon className="h-6 w-6" />
               <span>Notifications</span>
             </button>
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => router.push('/settings')} 
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
+              <Cog6ToothIcon className="h-6 w-6" />
+              <span>Settings</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/api/auth/logout'}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <ArrowRightOnRectangleIcon className="h-6 w-6" />
               <span>Logout</span>
             </button>
@@ -1250,7 +1276,7 @@ export default function RepositoryDetailsPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Sidebar */}
       <div className="w-64 bg-gray-800 text-white p-6 fixed h-full">
         <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
@@ -1280,15 +1306,31 @@ export default function RepositoryDetailsPage() {
         </nav>
 
         <div className="absolute bottom-6 left-6 right-6 space-y-4">
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => window.open('/help', '_blank')}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <QuestionMarkCircleIcon className="h-6 w-6" />
               <span>Help</span>
             </button>
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => router.push('/notifications')}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <BellIcon className="h-6 w-6" />
               <span>Notifications</span>
             </button>
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => router.push('/settings')} 
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
+              <Cog6ToothIcon className="h-6 w-6" />
+              <span>Settings</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/api/auth/logout'}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <ArrowRightOnRectangleIcon className="h-6 w-6" />
               <span>Logout</span>
             </button>
@@ -1296,7 +1338,7 @@ export default function RepositoryDetailsPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-8 ml-64">
+      <div className="flex-1 p-8 ml-64 bg-[var(--background)]">
 
 
 
@@ -1314,7 +1356,7 @@ export default function RepositoryDetailsPage() {
             >
               ← Back to Assignments
             </Link> */}
-            <h1 className="text-2xl font-bold text-gray-800">{repoName}</h1>
+            <h1 className="text-2xl font-bold text-[var(--text-primary)]">{repoName}</h1>
           </div>
 
           <div className="flex space-x-4">

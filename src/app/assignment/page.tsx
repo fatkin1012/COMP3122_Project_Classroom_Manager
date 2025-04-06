@@ -22,6 +22,8 @@ import {
   ViewfinderCircleIcon,
 } from '@heroicons/react/24/outline';
 import BranchModal from './components/BranchModal';
+import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/context/LanguageContext';
 
 interface Assignment {
   id: number;
@@ -49,6 +51,8 @@ const AssignmentPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // 控制側邊欄的狀態
+  const [mounted, setMounted] = useState(false);
+  const { t } = useLanguage();
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -61,7 +65,10 @@ const AssignmentPage = () => {
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [branchesError, setBranchesError] = useState<string | null>(null);
 
+  const router = useRouter();
+
   useEffect(() => {
+    setMounted(true);
     const fetchAssignments = async () => {
       try {
         const response = await fetch('/api/assignments', {
@@ -133,19 +140,26 @@ const AssignmentPage = () => {
     );
   });
 
+  // Avoid hydration issues
+  if (!mounted) {
+    return <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800"></div>
+    </div>;
+  }
+
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       {/* Sidebar */}
       {isSidebarOpen && (
         <div className="w-64 bg-gray-800 text-white p-6 fixed h-full">
-          <div className="text-2xl font-bold mb-10">GitHub Classroom Tracker</div>
+          <div className="text-2xl font-bold mb-10">{t('app.title')}</div>
           <nav className="space-y-4">
             <Link href="/" className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
               <HomeIcon className="h-6 w-6" />
-              <span>Home</span>
+              <span>{t('nav.home')}</span>
             </Link>
             {[
-              { icon: <ShoppingBagIcon className="h-6 w-6" />, text: 'Assignments', href: '/assignment' },
+              { icon: <ShoppingBagIcon className="h-6 w-6" />, text: t('nav.assignments'), href: '/assignment' },
             ].map((item) => (
               <Link key={item.text} href={item.href} className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg">
                 {item.icon}
@@ -161,23 +175,39 @@ const AssignmentPage = () => {
               className="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded-lg"
             >
               <CodeBracketIcon className="h-6 w-6" />
-              <span>Go to Classroom</span>
+              <span>{t('nav.goToClassroom')}</span>
             </Link>
           </nav>
 
           {/* Sidebar Buttons */}
           <div className="absolute bottom-6 left-6 right-6 space-y-4">
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => window.open('/help', '_blank')}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <QuestionMarkCircleIcon className="h-6 w-6" />
-              <span>Help</span>
+              <span>{t('nav.help')}</span>
             </button>
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => router.push('/notifications')}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <BellIcon className="h-6 w-6" />
-              <span>Notifications</span>
+              <span>{t('nav.notifications')}</span>
             </button>
-            <button className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg">
+            <button 
+              onClick={() => router.push('/settings')} 
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
+              <Cog6ToothIcon className="h-6 w-6" />
+              <span>{t('nav.settings')}</span>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/api/auth/logout'}
+              className="flex items-center space-x-3 p-2 w-full text-left hover:bg-gray-700 rounded-lg"
+            >
               <ArrowRightOnRectangleIcon className="h-6 w-6" />
-              <span>Logout</span>
+              <span>{t('nav.logout')}</span>
             </button>
           </div>
           
@@ -185,24 +215,16 @@ const AssignmentPage = () => {
       )}
 
       {/* Main Content */}
-      <div className={`flex-1 p-8 ${isSidebarOpen ? 'ml-64' : ''}`}>
-        {/* Toggle Sidebar Button */}
-        {/* <button
-          onClick={toggleSidebar}
-          className="p-2 bg-gray-800 text-white rounded-lg mb-4 hover:bg-gray-700"
-        >
-          {isSidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
-        </button> */}
-
+      <div className={`flex-1 p-8 ${isSidebarOpen ? 'ml-64' : ''} bg-[var(--background)]`}>
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">Assignments</h1>  
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">{t('assignments.title')}</h1>  
           {/* Classroom Repositories */}
           <div className="w-96">
             <input
               type="text"
-              placeholder=" Search repositories..."
-              className="w-full p-2 rounded-full border border-gray-300"
+              placeholder={t('assignments.search')}
+              className="w-full p-2 rounded-full border border-[var(--border-color)] bg-[var(--card-background)] text-[var(--card-foreground)]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -212,72 +234,127 @@ const AssignmentPage = () => {
         {/* Assignment Content */}
         <div className="grid gap-6">
           {loading ? (
-            <div className="text-center py-8">Loading repositories...</div>
+            <div className="text-center py-8 text-[var(--text-secondary)]">{t('assignments.loading')}</div>
           ) : error ? (
             <div className="text-center py-8 text-red-600">{error}</div>
           ) : assignments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No repositories found</div>
+            <div className="text-center py-8 text-[var(--text-muted)]">{t('assignments.empty')}</div>
           ) : (
             filteredAssignments.map((assignment) => (
               <Link
                 key={assignment.id}
                 href={`/assignment/${assignment.name}`}
-                className="block bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-all duration-200 hover:bg-gray-50"
+                className="block bg-[var(--card-background)] text-[var(--card-foreground)] shadow-sm hover:shadow-md transition-shadow p-6 rounded-xl border border-[var(--border-color)]"
               >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <CodeBracketIcon className="h-6 w-6 text-gray-600" />
-                      <h2 className="text-xl font-semibold text-gray-800">{assignment.name}</h2>
+                <div className="flex justify-between flex-wrap gap-4">
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-[var(--text-primary)] hover:text-blue-600">{assignment.name}</h2>
+                    <p className="mt-2 text-[var(--text-secondary)]">{assignment.description || (
+                      <span className="text-[var(--text-muted)] italic">{t('assignments.noDescription')}</span>
+                    )}</p>
+                    
+                    <div className="mt-4 flex items-center text-[var(--text-muted)] space-x-6">
+                      <div className="flex items-center">
+                        <UserIcon className="h-4 w-4 mr-1" />
+                        <span>{assignment.owner}</span>
+                      </div>
+                      
+                      {assignment.language && (
+                        <div className="flex items-center">
+                          <CodeBracketIcon className="h-4 w-4 mr-1" />
+                          <span>{assignment.language || t('assignments.language')}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center">
+                        <ClockIcon className="h-4 w-4 mr-1" />
+                        <span>{t('assignments.updated')} {formatDate(assignment.lastUpdated)}</span>
+                      </div>
                     </div>
-                    <p className="text-gray-600 mt-2">{assignment.description}</p>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-600">
-                      {assignment.language || "Not specified"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center space-x-6 text-sm text-gray-500">
-                  <div className="flex items-center space-x-1">
-                    <UserIcon className="h-4 w-4" />
-                    <span>{assignment.owner}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <ClockIcon className="h-4 w-4" />
-                    <span>{new Date(assignment.lastUpdated).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <StarIcon className="h-4 w-4" />
-                    <span>{assignment.stars}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <ArrowPathIcon className="h-4 w-4" />
-                    <span>{assignment.forks}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <EyeIcon className="h-4 w-4" />
-                    <span>{assignment.views}</span>
+                  
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center space-x-4 text-[var(--text-secondary)]">
+                      <div className="flex items-center">
+                        <StarIcon className="h-5 w-5 mr-1 text-yellow-500" />
+                        <span>{assignment.stars}</span>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <ViewColumnsIcon className="h-5 w-5 mr-1 text-purple-500" />
+                        <span>{assignment.forks}</span>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        <EyeIcon className="h-5 w-5 mr-1 text-blue-500" />
+                        <span>{assignment.views}</span>
+                      </div>
+                    </div>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();  // Prevent navigation to repository page
+                        handleViewBranches(assignment.name);
+                      }}
+                      className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+                    >
+                      {t('assignments.viewBranches')}
+                    </button>
                   </div>
                 </div>
               </Link>
             ))
           )}
         </div>
+        
+        {/* Branch Modal */}
+        {isModalOpen && (
+          <BranchModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            repoName={selectedRepo}
+            branches={branches}
+            loading={branchesLoading}
+            error={branchesError}
+          />
+        )}
       </div>
-
-      {/* Branch Modal */}
-      <BranchModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        branches={branches}
-        repoName={selectedRepo}
-        isLoading={branchesLoading}
-        error={branchesError}
-      />
     </div>
   );
+};
+
+// Helper function to format dates
+const formatDate = (dateString: string) => {
+  // Cannot use hooks at function component level - need to pass in t
+  // const { t } = useLanguage(); 
+  
+  // Instead we'll resolve this by using a function component
+  return <FormattedDate dateString={dateString} />;
+};
+
+const FormattedDate: React.FC<{dateString: string}> = ({ dateString }) => {
+  const { t } = useLanguage();
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  let formattedDate;
+  if (diffDays === 0) {
+    formattedDate = t('assignments.today');
+  } else if (diffDays === 1) {
+    formattedDate = t('assignments.yesterday');
+  } else if (diffDays < 30) {
+    formattedDate = `${diffDays} ${t('assignments.daysAgo')}`;
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    formattedDate = `${months} ${months === 1 ? t('assignments.monthAgo') : t('assignments.monthsAgo')}`;
+  } else {
+    const years = Math.floor(diffDays / 365);
+    formattedDate = `${years} ${years === 1 ? t('assignments.yearAgo') : t('assignments.yearsAgo')}`;
+  }
+  
+  return <>{formattedDate}</>;
 };
 
 export default AssignmentPage;
